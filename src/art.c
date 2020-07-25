@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <assert.h>
 #include "art.h"
+#include <ctype.h> 
 
 #ifdef __i386__
     #include <emmintrin.h>
@@ -63,6 +64,9 @@ static void destroy_node(art_node *n) {
 
     // Special case leafs
     if (IS_LEAF(n)) {
+	for(int j = 0; j < n->partial_len;j++){
+		printf("%c",n->partial[j]);
+	}
         free(LEAF_RAW(n));
         return;
     }
@@ -953,7 +957,84 @@ int art_iter_prefix(art_tree *t, const unsigned char *key, int key_len, art_call
         // Recursively search
         child = find_child(n, key[depth]);
         n = (child) ? *child : NULL;
-        depth++;
     }
-    return 0;
 }
+
+
+int popular_iter(art_tree *t,art_callback cb, void* data){
+	return popular_prefix_iter(t->root,cb,data);
+}
+
+int popular_prefix_iter(art_node *n, art_callback cb, void *data){
+	if (!n) return 0;
+	if(IS_LEAF(n)){
+		art_leaf *l = LEAF_RAW(n);
+		printf("bug\n");
+		printf("value: %p\n",l->value);
+		return 0;
+	}	
+	printf("going through\n\n");
+	int idx,res;
+	switch(n->type){
+		case NODE4:
+			for(int x = 0; x < ((art_node4*)n)->n.num_children;x++){
+				for(int y = 0; y < 10; y++){
+					printf("x: %d\n",x);
+					printf("here?:%c\n",(((art_node4*)n)->children[x]->partial[y]));
+				}
+			}
+			
+			for(int i = 0; i < ((art_node4*)n)->n.num_children;i++){
+				printf("number of children: %d\n",((art_node4*)n)->n.num_children);
+				res = popular_prefix_iter(((art_node4*)n)->children[i],cb,data);	
+				if(res) return res;
+			}
+			
+			break;
+
+		case NODE16:
+			for(int i=0; i < ((art_node16*)n)->n.num_children;i++){
+				printf("num children2: %d\n",((art_node16*)n)->n.num_children);
+				for(int j = 0; j < ((art_node16*)n)->n.partial_len;j++){
+					printf("%c",((art_node16*)n)->n.partial[j]);
+				}
+				printf("\n");
+				res = popular_prefix_iter(((art_node16*)n)->children[i],cb,data);
+				if(res) return res;
+			}
+			break;
+
+		case NODE48:
+			for(int i = 0; i < 256;i++){
+				idx = ((art_node48*)n)->keys[i];
+				if(!idx) continue;
+				printf("num children3: %d\n",((art_node48*)n)->n.num_children);		
+				for(int j = 0;j < ((art_node48*)n)->n.partial_len;j++){
+					printf("%c",((art_node48*)n)->n.partial[j]);
+				}
+				res = popular_prefix_iter(((art_node48*)n)->children[i],cb,data);
+				if(res) return res;
+			}
+			break;
+
+		case NODE256:
+			for(int i = 0; i < 256; i++){
+				if(!((art_node256*)n)->children[i],cb,data) continue;
+				for(int j = 0; j < ((art_node256*)n)->n.partial_len;j++){
+					printf("%c",((art_node256*)n)->n.partial[j]);
+				}
+				res = recursive_iter(((art_node256*)n)->children[i],cb,data);
+				if(res) return res;
+			}	
+
+			break;
+
+		default:
+			abort();
+
+
+	}
+	return 0;
+}
+
+
