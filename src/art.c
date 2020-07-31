@@ -582,6 +582,7 @@ static void* recursive_insert(art_node *n, art_node **ref, const unsigned char *
         // Add the leafs to the new node4
         *ref = (art_node*)new_node;
         add_child4(new_node, ref, l->key[depth+longest_prefix], SET_LEAF(l));
+    	//github.com/dylsugar/libart.gitrintf("max_cmp: %d\n",max_cmp);
         add_child4(new_node, ref, l2->key[depth+longest_prefix], SET_LEAF(l2));
         return NULL;
     }
@@ -945,6 +946,7 @@ int art_iter_prefix(art_tree *t, const unsigned char *key, int key_len, art_call
             if (!prefix_len) {
                 return 0;
 
+
             // If we've matched the prefix, iterate on this node
             } else if (depth + prefix_len == key_len) {
                 return recursive_iter(n, cb, data);
@@ -969,23 +971,21 @@ int popular_prefix_iter(art_node *n, art_callback cb, void *data){
 	if (!n) return 0;
 	if(IS_LEAF(n)){
 		art_leaf *l = LEAF_RAW(n);
-		printf("bug\n");
-		printf("value: %p\n",l->value);
+		printf("leaf: %s\n\n\n",l->key);
 		return 0;
 	}	
-	printf("going through\n\n");
 	int idx,res;
 	switch(n->type){
 		case NODE4:
-			for(int x = 0; x < ((art_node4*)n)->n.num_children;x++){
-				for(int y = 0; y < 10; y++){
-					printf("x: %d\n",x);
-					printf("here?:%c\n",(((art_node4*)n)->children[x]->partial[y]));
-				}
-			}
-			
 			for(int i = 0; i < ((art_node4*)n)->n.num_children;i++){
-				printf("number of children: %d\n",((art_node4*)n)->n.num_children);
+				printf("number of children(%d)_4 of node: %d\n",i,((art_node4*)n)->n.num_children);
+				printf("node type 4:%d\n",((art_node4*)n)->n.type);
+				printf("partial_len 4: %d\n", ((art_node4*)n)->n.partial_len);
+				printf("node key 4: ");
+				for(int j = 0; j < ((art_node4*)n)->n.partial_len;j++){
+					printf("%c",((art_node4*)n)->n.partial[j]);
+				}
+				printf("\n");
 				res = popular_prefix_iter(((art_node4*)n)->children[i],cb,data);	
 				if(res) return res;
 			}
@@ -994,9 +994,13 @@ int popular_prefix_iter(art_node *n, art_callback cb, void *data){
 
 		case NODE16:
 			for(int i=0; i < ((art_node16*)n)->n.num_children;i++){
-				printf("num children2: %d\n",((art_node16*)n)->n.num_children);
-				for(int j = 0; j < ((art_node16*)n)->n.partial_len;j++){
-					printf("%c",((art_node16*)n)->n.partial[j]);
+				printf("number of children(%d)_16 of node: %d\n",i,((art_node16*)n)->n.num_children);
+				printf("node type 4:%d\n",((art_node16*)n)->n.type);
+				printf("partial_len 16: %d\n", ((art_node16*)n)->n.partial_len);
+				//printf("num children of children: %d\n",((art_node16*)n)->children[4]->num_children);
+				printf("node key 16: ");
+				for(int j = 0; j < ((art_node4*)n)->n.partial_len;j++){
+					printf("%c",((art_node4*)n)->n.partial[j]);
 				}
 				printf("\n");
 				res = popular_prefix_iter(((art_node16*)n)->children[i],cb,data);
