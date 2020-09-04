@@ -378,6 +378,7 @@ static int longest_common_prefix(art_leaf *l1, art_leaf *l2, int depth) {
     return idx;
 }
 
+
 static void copy_header(art_node *dest, art_node *src) {
     dest->num_children = src->num_children;
     dest->partial_len = src->partial_len;
@@ -480,6 +481,12 @@ static void add_child16(art_node16 *n, art_node **ref, unsigned char c, void *ch
 }
 
 static void add_child4(art_node4 *n, art_node **ref, unsigned char c, void *child) {
+    printf("real key: ");
+    for(int i = 0; i < n->n.num_children;i++){
+	printf("%c",n->n.partial[i]);
+    }
+    printf("\n");
+    printf("char: %c\n",c);
     if (n->n.num_children < 4) {
         int idx;
         for (idx=0; idx < n->n.num_children; idx++) {
@@ -550,13 +557,13 @@ static int prefix_mismatch(const art_node *n, const unsigned char *key, int key_
     return idx;
 }
 
+
 static void* recursive_insert(art_node *n, art_node **ref, const unsigned char *key, int key_len, void *value, int depth, int *old) {
     // If we are at a NULL node, inject a leaf
     if (!n) {
         *ref = (art_node*)SET_LEAF(make_leaf(key, key_len, value));
         return NULL;
     }
-
     // If we are at a leaf, we need to replace it with a node
     if (IS_LEAF(n)) {
         art_leaf *l = LEAF_RAW(n);
@@ -566,6 +573,7 @@ static void* recursive_insert(art_node *n, art_node **ref, const unsigned char *
             *old = 1;
             void *old_val = l->value;
             l->value = value;
+	  //  printf("key: %s\n",key);
             return old_val;
         }
 
@@ -574,34 +582,51 @@ static void* recursive_insert(art_node *n, art_node **ref, const unsigned char *
 
         // Create a new leaf
         art_leaf *l2 = make_leaf(key, key_len, value);
-
         // Determine longest prefix
         int longest_prefix = longest_common_prefix(l, l2, depth);
         new_node->n.partial_len = longest_prefix;
+	//printf("partial_len: %d\n",longest_prefix);
         memcpy(new_node->n.partial, key+depth, min(MAX_PREFIX_LEN, longest_prefix));
         // Add the leafs to the new node4
         *ref = (art_node*)new_node;
         add_child4(new_node, ref, l->key[depth+longest_prefix], SET_LEAF(l));
-    	//github.com/dylsugar/libart.gitrintf("max_cmp: %d\n",max_cmp);
         add_child4(new_node, ref, l2->key[depth+longest_prefix], SET_LEAF(l2));
         return NULL;
     }
 
     // Check if given node has a prefix
     if (n->partial_len) {
+	/*
+	printf("partial_len: %d\n",n->partial_len);
+	printf("key: ");
+        for(int i = 0; i < n->partial_len;i++){
+                printf("%c",n->partial[i]);
+	}
+	printf("\n");
+	*/
         // Determine if the prefixes differ, since we need to split
         int prefix_diff = prefix_mismatch(n, key, key_len, depth);
         if ((uint32_t)prefix_diff >= n->partial_len) {
             depth += n->partial_len;
             goto RECURSE_SEARCH;
         }
-
+	/*printf("key: ");
+	for(int i = 0; i < n->partial_len;i++){
+		printf("%c",n->partial[i]);
+	}
+	printf("\n");
+	*/
         // Create a new node
         art_node4 *new_node = (art_node4*)alloc_node(NODE4);
         *ref = (art_node*)new_node;
         new_node->n.partial_len = prefix_diff;
         memcpy(new_node->n.partial, n->partial, min(MAX_PREFIX_LEN, prefix_diff));
-
+        /*printf("key2: ");
+        for(int i = 0; i < new_node->n.partial_len;i++){
+                printf("%c",new_node->n.partial[i]);
+        }
+	printf("\n");	
+	*/
         // Adjust the prefix of the old node
         if (n->partial_len <= MAX_PREFIX_LEN) {
             add_child4(new_node, ref, n->partial[prefix_diff], n);
@@ -964,27 +989,58 @@ int art_iter_prefix(art_tree *t, const unsigned char *key, int key_len, art_call
 
 
 int popular_iter(art_tree *t,art_callback cb, void* data){
+	int holder = 0;
+	int popular_length = 0;
+	art_leaf *leafHolder;
+	printf("t->root: ");
+	for(int i = 0; i < t->root->partial_len;i++){
+		printf("%c",t->root->partial[i]);
+	}
+	printf("\n");
+	printf("root number of children: %d\n",t->root->num_children);
 	return popular_prefix_iter(t->root,cb,data);
 }
+
 
 int popular_prefix_iter(art_node *n, art_callback cb, void *data){
 	if (!n) return 0;
 	if(IS_LEAF(n)){
 		art_leaf *l = LEAF_RAW(n);
 		printf("leaf: %s\n\n\n",l->key);
+		for(int i = 0;  i < ((art_node4*)n)->n.num_children; i++){
+			printf("child pointer leaf1: %c\n",((art_node4*)n)->children[i]->partial[5]);
+			printf("child pointer leaf2: %c\n",((art_node4*)n)->children[i]->partial[6]);
+               		printf("child pointer leaf3: %c\n",((art_node4*)n)->children[i]->partial[7]);
+			printf("child pointer leaf4: %c\n",((art_node4*)n)->children[i]->partial[8]);
+			printf("child pointer leaf5: %c\n\n",((art_node4*)n)->children[i]->partial[9]);
+		}	
 		return 0;
+		
 	}	
 	int idx,res;
 	switch(n->type){
 		case NODE4:
 			for(int i = 0; i < ((art_node4*)n)->n.num_children;i++){
 				printf("number of children(%d)_4 of node: %d\n",i,((art_node4*)n)->n.num_children);
-				printf("node type 4:%d\n",((art_node4*)n)->n.type);
 				printf("partial_len 4: %d\n", ((art_node4*)n)->n.partial_len);
 				printf("node key 4: ");
 				for(int j = 0; j < ((art_node4*)n)->n.partial_len;j++){
 					printf("%c",((art_node4*)n)->n.partial[j]);
 				}
+				printf("\n\n");
+				for(int i = 0; i < ((art_node4*)n)->n.num_children; i++){
+					printf("child pointer key1: %c\n",((art_node4*)n)->children[i]->partial[0]); 
+					printf("child pointer key2: %c\n",((art_node4*)n)->children[i]->partial[1]); 
+					printf("child pointer key3: %c\n",((art_node4*)n)->children[i]->partial[2]);
+					printf("child pointer key4: %c\n\n",((art_node4*)n)->children[i]->partial[3]);
+				        printf("child pointer node1: %c\n",((art_node4*)n)->children[i]->partial[4]); 
+				        printf("child pointer node2: %c\n",((art_node4*)n)->children[i]->partial[5]);	
+					printf("child pointer node3: %c\n",((art_node4*)n)->children[i]->partial[6]);
+					printf("child pointer node4: %c\n",((art_node4*)n)->children[i]->partial[7]);
+				        printf("child pointer node5: %c\n",((art_node4*)n)->children[i]->partial[8]); 
+					printf("child pointer node6: %c\n",((art_node4*)n)->children[i]->partial[9]);
+					printf("child pointer node7: %c\n\n",((art_node4*)n)->children[i]->partial[10]); 	
+				}	
 				printf("\n");
 				res = popular_prefix_iter(((art_node4*)n)->children[i],cb,data);	
 				if(res) return res;
@@ -1002,6 +1058,7 @@ int popular_prefix_iter(art_node *n, art_callback cb, void *data){
 				for(int j = 0; j < ((art_node4*)n)->n.partial_len;j++){
 					printf("%c",((art_node4*)n)->n.partial[j]);
 				}
+				//if(((art_node16*)n)->n.num_children > )
 				printf("\n");
 				res = popular_prefix_iter(((art_node16*)n)->children[i],cb,data);
 				if(res) return res;
@@ -1027,7 +1084,7 @@ int popular_prefix_iter(art_node *n, art_callback cb, void *data){
 				for(int j = 0; j < ((art_node256*)n)->n.partial_len;j++){
 					printf("%c",((art_node256*)n)->n.partial[j]);
 				}
-				res = recursive_iter(((art_node256*)n)->children[i],cb,data);
+				res = popular_prefix_iter(((art_node256*)n)->children[i],cb,data);
 				if(res) return res;
 			}	
 
