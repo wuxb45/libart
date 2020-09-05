@@ -200,7 +200,7 @@ int art_iter_prefix(art_tree *t, const unsigned char *prefix, int prefix_len, ar
 
 int popular_iter(art_tree *t, art_callback cb, void *data);
 
-int popular_prefix_iter(art_node *n, art_callback cb,void *data);
+int popular_prefix_iter(art_node *n, int depth);
 #ifdef __cplusplus
 }
 #endif

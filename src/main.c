@@ -17,10 +17,9 @@ int main()
 		//printf("value: %s",fgets(buf, sizeof buf, f));
 		len = strlen(buf);
 		buf[len-1] = '\0';
-			
 		art_insert(&t, (unsigned char*)buf, len, (void*)line);
 		printf("line : %s\n",buf);
-		line++;			
+		line++;
 	}
 	printf("tree size: %ld\n",t.size);
 	art_callback cb;
